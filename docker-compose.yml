@@ -1,21 +1,35 @@
 version: '3'
 
 services:
-  mysql:
-    image: mysql
-    container_name: local-mysql-database
-    volumes:
-      - mysql:/var/lib/mysql
-    ports:
-      - 3306:3306
-    environment:
-      MYSQL_ROOT_PASSWORD: root
+    postgres:
+        image: postgres:12
+        restart: always
+        networks:
+            - backend
+        volumes:
+            - ./db_data:/var/lib/postgresql/data
+            - ./config/init.sql:/docker-entrypoint-initdb.d/10-init.sql
+        env_file:
+            - ./.env
+        healthcheck:
+            test: [ "CMD", "pg_isready", "-q", "-d", "devdb", "-U", "dev" ]
+            timeout: 45s
+            interval: 10s
+            retries: 10
+    
+    api:
+        build: .
+        ports:
+            - 4000:4000
+        networks:
+            - backend
+        depends_on:
+            postgres:
+                condition: service_healthy
 
-#state full volume to hold your SQL data
 volumes:
-  mysql:
-    driver: local
-    driver_opts:
-      type: 'none'
-      o: 'bind'
-      device: '/home/ramiomri/data-mysql'
+    db_data:
+
+networks:
+    backend:
+        driver: bridge
